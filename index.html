@@ -1,0 +1,51 @@
+<html>
+  <head>
+    <title>NiceURL</title>
+    <style>
+    </style>
+    <script>
+    // sends the AJAX request for the url
+    function askForNiceURL(uglyURL, callback) {
+      request = new XMLHttpRequest;
+
+      requestURL = "/process?" + encodeURIComponent(uglyURL);
+
+      request.open('GET', requestURL, true);
+
+      request.onload = function() {
+        if (request.status >= 200 && request.status < 400){
+          // Success!
+          resp = request.responseText
+        } else {
+          // We reached our target server, but it returned an error
+          resp = "ERROR"
+        }
+        callback(resp);
+      }
+
+      request.onerror = function() {
+        // There was a connection error of some sort
+      }
+
+      request.send();
+    }
+
+    function displayNiceURL(niceurl) {
+      document.getElementById('result').value = niceurl; 
+    }
+
+    function fetch() {
+      uglyURL = document.getElementById('searchbox').value;
+      askForNiceURL(uglyURL, displayNiceURL);
+    }
+
+    </script>
+  </head>
+  <body>
+    <h1>NiceURL</h1>
+    <p>Enter the URL you want to make nicer:</p>
+    <input type="text" id="searchbox" /><input type="button" value="Go" onclick="fetch()" />
+    <input type="text" disabled="yeah" id="result" />
+  </body>
+</html>
+
