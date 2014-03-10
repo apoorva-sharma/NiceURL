@@ -1,10 +1,14 @@
 var port = process.env.PORT || 5000;
 var app = require('http').createServer(handler).listen(port)
   , fs = require('fs')
-  , url = require('url')
-  , Boilerpipe = require('boilerpipe');
+  , url = require('url');
 
-var boilerpipe = new Boilerpipe();
+// objects to help with frequency analysis
+var frequencytracker = require('./frequencytracker');
+var priqueue = require('./priorityqueue');
+
+// to run Goose, which parses incoming text
+var exec = require('child_process');
 
 // handles requests sent to the server
 function handler (req, res) {
@@ -12,9 +16,8 @@ function handler (req, res) {
   // ajax request
   if (path == '/process') {
   	var query = url.parse(req.url).query;
-  	var output = makeNiceURL(query);
-  	res.writeHead(200);
-    res.end(output);
+    res.writeHead(200);
+  	getURLText(query,res);
   } else if (path == '/') { // mainpage
   	fs.readFile(__dirname + '/index.html',
       function (err, data) {
@@ -38,7 +41,63 @@ function handler (req, res) {
   }
 }
 
-// makes the URL Nice
-function makeNiceURL (query) {
-	return "nice nice " + decodeURIComponent(query);
+// gets the text from the url
+// query: encoded url to pass
+// res: response to write back
+function getURLText(query, res) {
+  console.log("getting URL text for ");
+  var url = decodeURIComponent(query);
+  console.log(url);
+  goosecmd = makeGooseCommand(url);
+  exec.exec(goosecmd, {cwd: 'Goose/goose'},
+    function(error, stdout, stderr) {
+      processText(error, stdout, res);
+    }
+  );
+}
+
+// returns a command to run that calls goose on the passed url
+function makeGooseCommand(url) {
+  var command = "mvn exec:java -Dexec.mainClass=com.gravity.goose.TalkToMeGoose -Dexec.args=\"";
+  command += url;
+  command += "\" -e -q";
+  return command;
+}
+
+// processes text to generate keywords
+function processText(err, text, res) {
+  if (err) {
+    res.end("error");
+    console.log(err);
+    return
+  }
+  // debug stuff
+  console.log("called processText with text")
+  console.log(text);
+
+  // create a frequency tracker
+  var tracker = new frequencytracker.FrequencyTracker();
+  // add in all the words from the text
+  var words = text.split(" ");
+  for (word in words) {
+    tracker.push(words[word]);
+  }
+
+  // create a PriorityQueue to find the 10 highest frequency words
+  var heap = new priqueue.PriorityQueue(function(elem) {
+    return -elem.frequency; // so the lowest score is the highest frequency
+  });
+
+  // add all the words in the tracker to the heap
+  tracker.getFrequencies().forEach(heap.push, heap);
+
+  //console.log(heap.content);
+
+  // a string of keywords:
+  var keywords = "";
+  for(var i = 0; i < 10; i++) {
+    keywords += heap.pop().word;
+  }
+
+  res.end(keywords);
 }
