@@ -10,6 +10,19 @@ var priqueue = require('./priorityqueue');
 // to run Goose, which parses incoming text
 var exec = require('child_process');
 
+// to use the Readability text extractor
+var read =require('node-readability');
+
+// to remove html tags:
+var cheerio = require('cheerio');
+
+var extractors = {READABILITY: 1, GOOSE: 2}
+
+var extractor = extractors.READABILITY; // or GOOSE
+
+// test the priqueue
+//priqueue.test();
+
 // handles requests sent to the server
 function handler (req, res) {
   var path =  url.parse(req.url).pathname;
@@ -48,12 +61,37 @@ function getURLText(query, res) {
   console.log("getting URL text for ");
   var url = decodeURIComponent(query);
   console.log(url);
-  goosecmd = makeGooseCommand(url);
-  exec.exec(goosecmd, {cwd: 'Goose/goose'},
-    function(error, stdout, stderr) {
-      processText(error, stdout, res);
-    }
-  );
+
+  if (extractor == extractors.READABILITY) {
+
+    console.log("Using Readability extractor");
+    read(url, function(error, article, meta) {
+      var text = "";
+
+      // strip html tags
+      $ = cheerio.load(article.content);
+
+      $("noscript").each( function() {
+        $(this).text("");        
+      });
+      $("*").each( function() {
+        text += " " + $(this).text();
+      })
+
+      processText(error,text, res);
+    });
+
+  } else {
+
+    console.log("Using Goose extractor");
+    goosecmd = makeGooseCommand(url);
+    exec.exec(goosecmd, {cwd: 'Goose/goose'},
+      function(error, stdout, stderr) {
+        processText(error, stdout, res);
+      }
+    );
+
+  }  
 }
 
 // returns a command to run that calls goose on the passed url
@@ -78,7 +116,7 @@ function processText(err, text, res) {
   // create a frequency tracker
   var tracker = new frequencytracker.FrequencyTracker();
   // add in all the words from the text
-  var words = text.split(" ");
+  var words = text.split(/\b(\s+)\b/);
   for (word in words) {
     tracker.push(words[word]);
   }
@@ -96,7 +134,10 @@ function processText(err, text, res) {
   // a string of keywords:
   var keywords = "";
   for(var i = 0; i < 10; i++) {
-    keywords += heap.pop().word;
+    keyword = heap.pop();
+    console.log("word:" + keyword.word);
+    console.log("frequency", keyword.frequency)
+    keywords += keyword.word;
   }
 
   res.end(keywords);

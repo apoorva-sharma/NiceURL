@@ -2,7 +2,8 @@
   "name": "nice-url",
   "version": "0.0.1",
   "dependencies": {
-    "boilerpipe": "0.0.7"
+    "node-readability": "0.3.2",
+    "cheerio": "0.13.x"
   },
   "engines": {
     "node": "0.10.x",

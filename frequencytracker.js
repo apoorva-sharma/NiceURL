@@ -9,7 +9,6 @@ var regexes = meaningless.regexes;
 function FrequencyTracker() {
 	this.words = {}; // a dictionary to store words and frequencies
 	this.total = 0; // total number of words taken in
-	console.log("made a frequency tracker");
 }
 
 FrequencyTracker.prototype = {
@@ -19,7 +18,8 @@ FrequencyTracker.prototype = {
 		word = this.normalize(word);
 
 		// if the normalized word is bad, nothing to do
-		if (word === "")
+		// (ignore words smaller than 3 letters)
+		if (word.length < 3)
 			return;
 
 		// if the word is in the dictionary
